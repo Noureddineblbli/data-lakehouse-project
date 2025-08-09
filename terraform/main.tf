@@ -1,12 +1,16 @@
 # This block configures Terraform's own settings, such as the required version
 # and the backend where the state file will be stored.
 terraform {
-  required_version = ">= 1.0" # Specifies that we need Terraform version 1.0 or newer.
+  required_version = ">= 1.0"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0" # Use a version of the AWS provider compatible with 5.x.
+      version = "~> 5.0"
+    }
+    random = { # <-- ADD THIS ENTIRE BLOCK
+      source  = "hashicorp/random"
+      version = "~> 3.5"
     }
   }
 }
