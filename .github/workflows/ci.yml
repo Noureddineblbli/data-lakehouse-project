@@ -58,5 +58,5 @@ jobs:
       # Step 6: Run TFLint to check the code for issues.
       - name: TFLint
         id: lint
-        run: tflint --compact
+        run: tflint
         working-directory: ./terraform
