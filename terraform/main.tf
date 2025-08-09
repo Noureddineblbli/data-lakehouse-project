@@ -53,3 +53,10 @@ resource "aws_s3_bucket" "gold_bucket" {
   bucket = "data-lakehouse-gold-${random_string.bucket_suffix.result}"
   force_destroy = true
 }
+
+# --- Glue Data Catalog ---
+# This will hold the metadata (schemas, table definitions) for our data lake.
+
+resource "aws_glue_catalog_database" "data_lake_db" {
+  name = "data_lakehouse_db"
+}
