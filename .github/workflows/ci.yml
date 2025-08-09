@@ -1,0 +1,62 @@
+# This is the name of our GitHub Actions workflow.
+name: Terraform CI
+
+# This section defines when the workflow will run.
+on:
+  # Run on every push to the 'main' branch.
+  push:
+    branches:
+      - main
+  # Also run on any pull request that targets the 'main' branch.
+  pull_request:
+    branches:
+      - main
+
+# This section defines the jobs that will be executed.
+jobs:
+  # We are defining a single job named 'terraform-ci'.
+  terraform-ci:
+    # This specifies the type of virtual machine to run the job on.
+    # 'ubuntu-latest' is a standard, good choice.
+    runs-on: ubuntu-latest
+
+    # These are the individual steps that make up the job.
+    steps:
+      # Step 1: Check out our code from the repository into the runner.
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Terraform on the runner.
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7 # Use a specific version for consistency.
+
+      # Step 3: Initialize Terraform. This downloads the necessary providers.
+      # We provide credentials here, even though we aren't running 'apply', because
+      # 'init' sometimes needs to authenticate to find certain modules.
+      - name: Terraform Init
+        id: init
+        run: terraform init
+        working-directory: ./terraform
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      
+      # Step 4: Run 'terraform validate'. This checks for syntax errors.
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+        working-directory: ./terraform
+
+      # Step 5: Install the TFLint linter for checking best practices.
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v3
+        with:
+          tflint_version: v0.48.0
+      
+      # Step 6: Run TFLint to check the code for issues.
+      - name: TFLint
+        id: lint
+        run: tflint --compact
+        working-directory: ./terraform
