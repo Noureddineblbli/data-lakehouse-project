@@ -3,24 +3,29 @@ version: '3.8'
 x-airflow-common: &airflow-common
   build:
     context: ./airflow
+  user: root # Keep running as root to simplify permissions
   environment:
     - AIRFLOW__CORE__EXECUTOR=LocalExecutor
     - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
     - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+    - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    - AWS_REGION=${AWS_REGION}
   volumes:
     - ./airflow/dags:/opt/airflow/dags
     - ./airflow/logs:/opt/airflow/logs
     - ./airflow/plugins:/opt/airflow/plugins
     - ./spark/jobs:/opt/spark/jobs
     - ./data:/opt/data
-    - ./data:/opt/bitnami/spark/data
+    - spark-staging-area:/staging
+    - ./jars:/opt/airflow/jars
+  networks:
+    - pipeline_net
 
 services:
   postgres:
     image: postgres:13
     container_name: postgres
-    networks:
-      - data-pipeline-network
     ports:
       - "5432:5432"
     environment:
@@ -29,78 +34,99 @@ services:
       - POSTGRES_DB=airflow
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
+    networks:
+      - pipeline_net
 
   airflow-init:
     <<: *airflow-common
     container_name: airflow_init
-    networks:
-      - data-pipeline-network
-    entrypoint: /bin/bash
     depends_on:
       - postgres
     command: >
-      -c "
-      airflow db init &&
-      airflow users create --username admin --password admin --firstname Anonymous --lastname Admin --role Admin --email admin@example.org
-      "
-  
+      bash -c "airflow db init && airflow users create --username admin --password admin --firstname Anonymous --lastname Admin --role Admin --email admin@example.org"
+
   airflow-webserver:
     <<: *airflow-common
     container_name: airflow_webserver
-    user: root
-    networks:
-      - data-pipeline-network
     restart: always
     depends_on:
       - airflow-init
     ports:
       - "8080:8080"
-    command: "webserver"
+    command: webserver
 
   airflow-scheduler:
     <<: *airflow-common
     container_name: airflow_scheduler
-    user: root
-    networks:
-      - data-pipeline-network
     restart: always
     depends_on:
       - airflow-init
-    command: "scheduler"
+    command: scheduler
 
+  # MODIFIED: Use the same build as Airflow for consistency.
   spark-master:
-    image: bitnami/spark:3.5.0
+    build:
+      context: ./airflow
     container_name: spark_master
+    environment:
+      # --- USE THE FOLLOWING 4 LINES ---
+      - SPARK_CONF_fs_s3a_access_key=${AWS_ACCESS_KEY_ID}
+      - SPARK_CONF_fs_s3a_secret_key=${AWS_SECRET_ACCESS_KEY}
+      - SPARK_CONF_fs_s3a_endpoint=s3.${AWS_REGION}.amazonaws.com
+      - SPARK_CONF_fs_s3a_aws_credentials_provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+      - SPARK_CONF_spark_jars_packages=org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262
     user: root
-    networks:
-      - data-pipeline-network
     ports:
       - "8081:8080"
       - "7077:7077"
     volumes:
-      - ./spark/jobs:/opt/bitnami/spark/jobs
+      # Adjusted paths to match our custom image's Spark installation
+      - ./spark/jobs:/opt/spark/jobs
       - ./data:/opt/data
-
-  spark-worker:
-    image: bitnami/spark:3.5.0
-    container_name: spark_worker
-    user: root
+      - spark-staging-area:/staging
+      - ./jars:/opt/bitnami/spark/jars
     networks:
-      - data-pipeline-network
+      pipeline_net:
+        aliases:
+          - spark-master
+    # Use a command to start the Spark master daemon
+    command: >
+      bash -c "/opt/spark/sbin/start-master.sh && tail -f /dev/null"
+
+  # MODIFIED: Use the same build as Airflow for consistency.
+  spark-worker:
+    build:
+      context: ./airflow
+    container_name: spark_worker
+    environment:
+        # --- USE THE FOLLOWING 4 LINES ---
+      - SPARK_CONF_fs_s3a_access_key=${AWS_ACCESS_KEY_ID}
+      - SPARK_CONF_fs_s3a_secret_key=${AWS_SECRET_ACCESS_KEY}
+      - SPARK_CONF_fs_s3a_endpoint=s3.${AWS_REGION}.amazonaws.com
+      - SPARK_CONF_fs_s3a_aws_credentials_provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+      - SPARK_CONF_spark_jars_packages=org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262
+    user: root
     depends_on:
       - spark-master
     ports:
       - "8082:8080"
-    environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_DIR=/opt/data/spark_work
     volumes:
-      - ./spark/jobs:/opt/bitnami/spark/jobs
+      # Adjusted paths to match our custom image's Spark installation
+      - ./spark/jobs:/opt/spark/jobs
       - ./data:/opt/data
+      - spark-staging-area:/staging
+      - ./jars:/opt/bitnami/spark/jars
+    networks:
+      - pipeline_net
+    # Use a command to start the Spark worker daemon and connect to the master
+    command: >
+      bash -c "/opt/spark/sbin/start-worker.sh spark://spark-master:7077 && tail -f /dev/null"
 
 volumes:
   postgres-db-volume:
+  spark-staging-area:
+
 
 networks:
-  data-pipeline-network:
+  pipeline_net:
+    driver: bridge
