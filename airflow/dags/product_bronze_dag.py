@@ -31,7 +31,7 @@ with DAG(
         application='/opt/spark/jobs/bronze_ingestion.py',
         conn_id='spark_default',
         name='arrow-spark',
-        jars="/opt/airflow/jars/hadoop-aws-3.3.4.jar,/opt/airflow/jars/aws-java-sdk-bundle-1.12.262.jar"
+        packages="org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262"
     )
 
     # Task 3: (MODIFIED) - Upload from staging to S3 and then clean up.

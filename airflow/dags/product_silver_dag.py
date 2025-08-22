@@ -30,7 +30,7 @@ with DAG(
         conn_id="spark_default",
         application="/opt/spark/jobs/silver_transformation.py",
         verbose=True,
-        jars="/opt/airflow/jars/hadoop-aws-3.3.4.jar,/opt/airflow/jars/aws-java-sdk-bundle-1.12.262.jar"
+        packages="org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262"
     )
 
     # Task 3: Upload the staged Silver data to S3 and then clean up the staging area.

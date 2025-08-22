@@ -37,6 +37,14 @@ RUN wget -O /tmp/spark.tgz https://archive.apache.org/dist/spark/spark-${SPARK_V
     rm /tmp/spark.tgz && \
     mv /opt/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} $SPARK_HOME
 
+
+# ADD THIS SECTION - Download AWS Glue libraries directly to Spark
+# Download only the basic AWS and Hadoop libraries that are publicly available
+# Download only the basic AWS libraries that are publicly available
+# Download only the basic AWS libraries that are publicly available
+RUN cd $SPARK_HOME/jars && \
+    wget https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar && \
+    wget https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar
 # Switch back to airflow user for pip installation
 USER airflow
 
