@@ -23,6 +23,28 @@ x-airflow-common: &airflow-common
     - pipeline_net
 
 services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_database
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: sales  # This matches your init.sql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db:/docker-entrypoint-initdb.d
+    networks:
+      - pipeline_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    command: --default-authentication-plugin=mysql_native_password
   postgres:
     image: postgres:13
     container_name: postgres
@@ -125,6 +147,7 @@ services:
 volumes:
   postgres-db-volume:
   spark-staging-area:
+  mysql_data:
 
 
 networks:
