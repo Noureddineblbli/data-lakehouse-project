@@ -96,7 +96,7 @@ services:
       - SPARK_CONF_fs_s3a_secret_key=${AWS_SECRET_ACCESS_KEY}
       - SPARK_CONF_fs_s3a_endpoint=s3.${AWS_REGION}.amazonaws.com
       - SPARK_CONF_fs_s3a_aws_credentials_provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
-      - SPARK_CONF_spark_jars_packages=org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262
+      - SPARK_CONF_spark_jars_packages=org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262,com.mysql:mysql-connector-j:8.0.33
     user: root
     ports:
       - "8081:8080"
@@ -126,7 +126,10 @@ services:
       - SPARK_CONF_fs_s3a_secret_key=${AWS_SECRET_ACCESS_KEY}
       - SPARK_CONF_fs_s3a_endpoint=s3.${AWS_REGION}.amazonaws.com
       - SPARK_CONF_fs_s3a_aws_credentials_provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
-      - SPARK_CONF_spark_jars_packages=org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262
+      - SPARK_CONF_spark_jars_packages=org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262,com.mysql:mysql-connector-j:8.0.33
+      - SPARK_CONF_spark_driver_extraClassPath=/root/.ivy2/jars/*
+      - SPARK_CONF_spark_executor_extraClassPath=/root/.ivy2/jars/*
+      - SPARK_CONF_spark_jars_ivy=/root/.ivy2
     user: root
     depends_on:
       - spark-master
