@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<weather_observations>
+    <observation>
+        <timestamp>2025-08-16T12:00:00Z</timestamp>
+        <station_id>STN001</station_id>
+        <temperature>25.5</temperature>
+        <humidity>60.2</humidity>
+        <wind_speed>15.3</wind_speed>
+        <conditions>Sunny</conditions>
+    </observation>
+    <observation>
+        <timestamp>2025-08-16T12:00:00Z</timestamp>
+        <station_id>STN002</station_id>
+        <temperature>18.2</temperature>
+        <humidity>75.5</humidity>
+        <wind_speed>5.8</wind_speed>
+        <conditions>Cloudy</conditions>
+    </observation>
+    <observation>
+        <timestamp>2025-08-16T13:00:00Z</timestamp>
+        <station_id>STN001</station_id>
+        <temperature>26.1</temperature>
+        <humidity>58.9</humidity>
+        <wind_speed>18.1</wind_speed>
+        <conditions>Sunny</conditions>
+    </observation>
+    <observation>
+        <timestamp>2025-08-16T13:00:00Z</timestamp>
+        <station_id>STN002</station_id>
+        <temperature>18.5</temperature>
+        <humidity>74.8</humidity>
+        <wind_speed>7.2</wind_speed>
+        <conditions>Partly Cloudy</conditions>
+    </observation>
+</weather_observations>
