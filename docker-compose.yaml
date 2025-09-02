@@ -10,15 +10,21 @@ x-airflow-common: &airflow-common
     - AIRFLOW__CORE__LOAD_EXAMPLES=False
     - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
     - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    - AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}
     - AWS_REGION=${AWS_REGION}
+    - BRONZE_S3_BUCKET=${BRONZE_S3_BUCKET}
+    - SILVER_S3_BUCKET=${SILVER_S3_BUCKET}
+    - GOLD_S3_BUCKET=${GOLD_S3_BUCKET}
   volumes:
     - ./airflow/dags:/opt/airflow/dags
     - ./airflow/logs:/opt/airflow/logs
     - ./airflow/plugins:/opt/airflow/plugins
     - ./spark/jobs:/opt/spark/jobs
+    - ./spark/conf:/opt/spark/conf # <<< ADDED HERE: Make hive-site.xml available to Airflow/Spark-Submit
     - ./data:/opt/data
     - spark-staging-area:/staging
-    - ./jars:/opt/airflow/jars
+    - ./jars:/opt/bitnami/spark/jars
+    - ./scripts:/opt/airflow/scripts
   networks:
     - pipeline_net
 
@@ -30,7 +36,7 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: sales  # This matches your init.sql
+      MYSQL_DATABASE: sales # This matches your init.sql
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
@@ -41,10 +47,11 @@ services:
     networks:
       - pipeline_net
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
       timeout: 20s
       retries: 10
     command: --default-authentication-plugin=mysql_native_password
+
   postgres:
     image: postgres:13
     container_name: postgres
@@ -84,34 +91,34 @@ services:
     depends_on:
       - airflow-init
     command: scheduler
-   
-  fastapi:
+
+  api:
     build:
       context: ./api
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8001:8000"
     volumes:
       - ./api:/app
-  # MODIFIED: Use the same build as Airflow for consistency.
+    networks:
+      - pipeline_net
+
   spark-master:
     build:
       context: ./airflow
     container_name: spark_master
     environment:
-      # --- USE THE FOLLOWING 4 LINES ---
       - SPARK_CONF_fs_s3a_access_key=${AWS_ACCESS_KEY_ID}
       - SPARK_CONF_fs_s3a_secret_key=${AWS_SECRET_ACCESS_KEY}
       - SPARK_CONF_fs_s3a_endpoint=s3.${AWS_REGION}.amazonaws.com
       - SPARK_CONF_fs_s3a_aws_credentials_provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
-      - SPARK_CONF_spark_jars_packages=org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262,com.mysql:mysql-connector-j:8.0.33
     user: root
     ports:
       - "8081:8080"
       - "7077:7077"
     volumes:
-      # Adjusted paths to match our custom image's Spark installation
       - ./spark/jobs:/opt/spark/jobs
+      - ./spark/conf:/opt/spark/conf # <<< ADDED HERE: Make hive-site.xml available to Spark Master
       - ./data:/opt/data
       - spark-staging-area:/staging
       - ./jars:/opt/bitnami/spark/jars
@@ -119,22 +126,18 @@ services:
       pipeline_net:
         aliases:
           - spark-master
-    # Use a command to start the Spark master daemon
     command: >
       bash -c "/opt/spark/sbin/start-master.sh && tail -f /dev/null"
 
-  # MODIFIED: Use the same build as Airflow for consistency.
   spark-worker:
     build:
       context: ./airflow
     container_name: spark_worker
     environment:
-        # --- USE THE FOLLOWING 4 LINES ---
       - SPARK_CONF_fs_s3a_access_key=${AWS_ACCESS_KEY_ID}
       - SPARK_CONF_fs_s3a_secret_key=${AWS_SECRET_ACCESS_KEY}
       - SPARK_CONF_fs_s3a_endpoint=s3.${AWS_REGION}.amazonaws.com
       - SPARK_CONF_fs_s3a_aws_credentials_provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
-      - SPARK_CONF_spark_jars_packages=org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262,com.mysql:mysql-connector-j:8.0.33
       - SPARK_CONF_spark_driver_extraClassPath=/root/.ivy2/jars/*
       - SPARK_CONF_spark_executor_extraClassPath=/root/.ivy2/jars/*
       - SPARK_CONF_spark_jars_ivy=/root/.ivy2
@@ -144,14 +147,13 @@ services:
     ports:
       - "8082:8080"
     volumes:
-      # Adjusted paths to match our custom image's Spark installation
       - ./spark/jobs:/opt/spark/jobs
+      - ./spark/conf:/opt/spark/conf # <<< ADDED HERE: Make hive-site.xml available to Spark Worker
       - ./data:/opt/data
       - spark-staging-area:/staging
       - ./jars:/opt/bitnami/spark/jars
     networks:
       - pipeline_net
-    # Use a command to start the Spark worker daemon and connect to the master
     command: >
       bash -c "/opt/spark/sbin/start-worker.sh spark://spark-master:7077 && tail -f /dev/null"
 
@@ -159,7 +161,6 @@ volumes:
   postgres-db-volume:
   spark-staging-area:
   mysql_data:
-
 
 networks:
   pipeline_net:

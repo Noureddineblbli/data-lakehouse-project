@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<configuration>
+    <!-- Hive Metastore Integration with AWS Glue Data Catalog -->
+    <property>
+        <name>hive.metastore.client.factory.class</name>
+        <value>com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory</value>
+        <description>The factory class for the Hive metastore client.</description>
+    </property>
+
+    <!-- Specify the AWS Region for the Glue Data Catalog -->
+    <property>
+        <name>hive.metastore.glue.aws.region</name>
+        <value>${env:AWS_REGION}</value>
+        <description>The AWS region of your Glue Data Catalog.</description>
+    </property>
+
+</configuration>
